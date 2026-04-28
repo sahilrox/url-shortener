@@ -216,27 +216,22 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
 
     UrlMapping? url = null;
 
-    if (!string.IsNullOrEmpty(longUrl))
-    {
-        url = await repo.GetByCodeAsync(code); 
-    }
-    else
-    {
-        url = await repo.GetByCodeAsync(code);
-
-        if (url != null)
-        {
-            await cache.StringSetAsync(cacheKey, url.LongUrl, TimeSpan.FromMinutes(10));
-        }
-    }
+    // ✅ Always get DB entity FIRST
+    url = await repo.GetByCodeAsync(code);
 
     if (url == null)
         return Results.NotFound(new { error = "URL not found" });
 
+    // ✅ Cache it if not present
+    if (string.IsNullOrEmpty(longUrl))
+    {
+        await cache.StringSetAsync(cacheKey, url.LongUrl, TimeSpan.FromMinutes(10));
+    }
+
     if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
         return Results.BadRequest(new { error = "Link expired" });
 
-    // ✅ SAFE analytics tracking
+    // ✅ SAFE analytics
     try
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -257,9 +252,8 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
         Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
     }
 
-    return Results.Redirect(url.LongUrl, permanent: false);
-})
-.RequireRateLimiting("fixed");
+    return Results.Redirect(url.LongUrl, false);
+});
 
 
 app.Run();
