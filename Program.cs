@@ -44,10 +44,20 @@ builder.Services.AddScoped<UrlRepository>();
 
 var app = builder.Build();
 
+
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+        Console.WriteLine("Migration completed ✅");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Migration failed ❌");
+        Console.WriteLine(ex.Message);
+    }
 }
 
 if (app.Environment.IsDevelopment())
