@@ -200,7 +200,7 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
 });
 
 // GET /{code} — placeholder for now  
-app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}}", async (
+app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     string code,
     UrlRepository repo,
     IConnectionMultiplexer redis,
@@ -237,7 +237,7 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}}", async (
     url.HitCount++;
     await db.SaveChangesAsync();
 
-    return Results.Redirect(url.LongUrl);
+    return Results.Redirect(url.LongUrl, permanent: false);
 })
 .RequireRateLimiting("fixed");
 
