@@ -37,20 +37,25 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-    if (string.IsNullOrWhiteSpace(databaseUrl))
-        throw new Exception("DATABASE_URL is NOT set ❌");
+    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        Console.WriteLine("Using Render DB ✅");
 
-    Console.WriteLine("DATABASE_URL FOUND ✅");
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var port = uri.Port > 0 ? uri.Port : 5432;
 
-    var uri = new Uri(databaseUrl);
-    var userInfo = uri.UserInfo.Split(':');
+        var connectionString =
+            $"Host={uri.Host};Port={port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
 
-    var port = uri.Port > 0 ? uri.Port : 5432;
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        Console.WriteLine("Using LOCAL DB");
 
-    var connectionString =
-        $"Host={uri.Host};Port={port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
-
-    options.UseNpgsql(connectionString);
+        options.UseNpgsql("Host=localhost;Port=5432;Database=urlshortener;Username=postgres;Password=sahil1999");
+    }
 });
 builder.Services.AddScoped<UrlRepository>();
 
@@ -62,6 +67,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     options.AbortOnConnectFail = false;
 
     return ConnectionMultiplexer.Connect(options);
+    Console.WriteLine("Redis connected 🚀");
 });
 
 var app = builder.Build();
@@ -97,36 +103,31 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
 {
     // ✅ Validate URL
     if (!Uri.TryCreate(request.Url, UriKind.Absolute, out _))
-        return Results.BadRequest("Invalid URL");
+        return Results.BadRequest(new { error = "Invalid URL" });
 
     string code;
 
     var reservedCodes = new[] { "help", "admin", "login", "stats" };
 
-    if (!string.IsNullOrWhiteSpace(request.CustomCode))
-    {
-        if (reservedCodes.Contains(request.CustomCode.ToLower()))
-            return Results.BadRequest("This code is reserved");
-    }
 
     if (!string.IsNullOrWhiteSpace(request.CustomCode))
     {        
 
         if (reservedCodes.Contains(request.CustomCode.ToLower()))
-            return Results.BadRequest("This code is reserved");
+            return Results.BadRequest(new { error = "This code is reserved" });
 
         if (request.CustomCode == "string")
-            return Results.BadRequest("Please provide a valid custom code");
+            return Results.BadRequest(new { error = "Please provide a valid custom code" });
 
         if (!Regex.IsMatch(request.CustomCode, "^[a-zA-Z0-9]+$"))
-            return Results.BadRequest("Custom code must be alphanumeric");
+            return Results.BadRequest(new { error = "Custom code must be alphanumeric" });
 
         if (request.CustomCode.Length > 10)
-            return Results.BadRequest("Custom code too long");
+            return Results.BadRequest(new { error = "Custom code too long" });
 
         var exists = await repo.GetByCodeAsync(request.CustomCode);
         if (exists != null)
-            return Results.BadRequest("Custom code already exists");
+            return Results.BadRequest(new { error = "Custom code already exists" });
 
         code = request.CustomCode;
     }
@@ -201,21 +202,28 @@ app.MapGet("/{code}", async (
 })
 .RequireRateLimiting("fixed");
 
-app.MapGet("/stats/{code}", async (string code, UrlRepository repo) =>
+app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
 {
-    var url = await repo.GetByCodeAsync(code);
+    var url = await db.Urls.FirstOrDefaultAsync(x => x.ShortCode == code);
 
     if (url == null)
         return Results.NotFound();
 
+    var totalClicks = await db.ClickEvents
+        .CountAsync(c => c.ShortCode == code);
+
+    var recentClicks = await db.ClickEvents
+        .Where(c => c.ShortCode == code)
+        .OrderByDescending(c => c.Timestamp)
+        .Take(10)
+        .ToListAsync();
+
     return Results.Ok(new
     {
-        shortCode = url.ShortCode,
-        originalUrl = url.LongUrl,
-        totalClicks = url.HitCount,
-        createdAt = url.CreatedAt,
-        expiresAt = url.ExpiresAt,
-        isExpired = url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow
+        url.ShortCode,
+        url.LongUrl,
+        totalClicks,
+        recentClicks
     });
 });
 

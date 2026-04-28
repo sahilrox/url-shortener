@@ -116,3 +116,4 @@ C:\Users\sahil\Projects\URL Shortener\UrlShortener.API\obj\Debug\net8.0\ref\UrlS
 C:\Users\sahil\Projects\URL Shortener\UrlShortener.API\bin\Debug\net8.0\url-shortener-ui\package-lock.json
 C:\Users\sahil\Projects\URL Shortener\UrlShortener.API\bin\Debug\net8.0\url-shortener-ui\package.json
 C:\Users\sahil\Projects\URL Shortener\UrlShortener.API\bin\Debug\net8.0\url-shortener-ui\public\manifest.json
+C:\Users\sahil\Projects\URL Shortener\UrlShortener.API\obj\Debug\net8.0\UrlShortener.API.sourcelink.json

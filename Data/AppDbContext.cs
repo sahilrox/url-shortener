@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
         : base(options) { }
 
     public DbSet<UrlMapping> Urls { get; set; }
+    public DbSet<ClickEvent> ClickEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
