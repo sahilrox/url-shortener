@@ -6,6 +6,7 @@ using UrlShortener.API.Models;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +54,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 builder.Services.AddScoped<UrlRepository>();
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(redisUrl);
+});
+
 var app = builder.Build();
 app.UseRateLimiter();
 
@@ -99,8 +106,7 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
     }
 
     if (!string.IsNullOrWhiteSpace(request.CustomCode))
-    {
-        var reservedCodes = new[] { "help", "admin", "login", "stats" };
+    {        
 
         if (reservedCodes.Contains(request.CustomCode.ToLower()))
             return Results.BadRequest("This code is reserved");
@@ -154,24 +160,27 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
 app.MapGet("/{code}", async (
     string code,
     UrlRepository repo,
-    IMemoryCache cache,
+    IConnectionMultiplexer redis,
     AppDbContext db) =>
 {
-    var cacheKey = $"url_{code}";
+    var cache = redis.GetDatabase();
+    var cacheKey = $"url:{code}";
 
-    if (!cache.TryGetValue(cacheKey, out UrlMapping? url))
+    string? longUrl = await cache.StringGetAsync(cacheKey);
+
+    UrlMapping? url = null;
+
+    if (!string.IsNullOrEmpty(longUrl))
+    {
+        url = new UrlMapping { ShortCode = code, LongUrl = longUrl };
+    }
+    else
     {
         url = await repo.GetByCodeAsync(code);
 
         if (url != null)
         {
-            var cacheOptions = new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
-                SlidingExpiration = TimeSpan.FromMinutes(2)
-            };
-
-            cache.Set(cacheKey, url, cacheOptions);
+            await cache.StringSetAsync(cacheKey, url.LongUrl, TimeSpan.FromMinutes(10));
         }
     }
 
