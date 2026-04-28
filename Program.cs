@@ -26,17 +26,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
     if (string.IsNullOrWhiteSpace(databaseUrl))
-    {
         throw new Exception("DATABASE_URL is NOT set ❌");
-    }
 
     Console.WriteLine("DATABASE_URL FOUND ✅");
 
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
 
+    var port = uri.Port > 0 ? uri.Port : 5432;
+
     var connectionString =
-        $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+        $"Host={uri.Host};Port={port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
 
     options.UseNpgsql(connectionString);
 });
