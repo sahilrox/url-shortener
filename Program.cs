@@ -207,52 +207,54 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     IConnectionMultiplexer redis,
     AppDbContext db) =>
 {
-    Console.WriteLine($"🔥 Redirect request for code: {code}");
+    // Console.WriteLine($"🔥 Redirect request for code: {code}");
 
-    var cache = redis.GetDatabase();
-    var cacheKey = $"url:{code}";
+    // var cache = redis.GetDatabase();
+    // var cacheKey = $"url:{code}";
 
-    string? longUrl = await cache.StringGetAsync(cacheKey);
+    // string? longUrl = await cache.StringGetAsync(cacheKey);
 
-    UrlMapping? url = null;
+    // UrlMapping? url = null;
 
-    // ✅ Always get DB entity FIRST
-    url = await repo.GetByCodeAsync(code);
+    // // ✅ Always get DB entity FIRST
+    // url = await repo.GetByCodeAsync(code);
 
-    if (url == null)
-        return Results.NotFound(new { error = "URL not found" });
+    // if (url == null)
+    //     return Results.NotFound(new { error = "URL not found" });
 
-    // ✅ Cache it if not present
-    if (string.IsNullOrEmpty(longUrl))
-    {
-        await cache.StringSetAsync(cacheKey, url.LongUrl, TimeSpan.FromMinutes(10));
-    }
+    // // ✅ Cache it if not present
+    // if (string.IsNullOrEmpty(longUrl))
+    // {
+    //     await cache.StringSetAsync(cacheKey, url.LongUrl, TimeSpan.FromMinutes(10));
+    // }
 
-    if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
-        return Results.BadRequest(new { error = "Link expired" });
+    // if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
+    //     return Results.BadRequest(new { error = "Link expired" });
 
-    // ✅ SAFE analytics
-    try
-    {
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    // // ✅ SAFE analytics
+    // try
+    // {
+    //     var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        db.ClickEvents.Add(new ClickEvent
-        {
-            ShortCode = code,
-            Timestamp = DateTime.UtcNow,
-            IpAddress = ip
-        });
+    //     db.ClickEvents.Add(new ClickEvent
+    //     {
+    //         ShortCode = code,
+    //         Timestamp = DateTime.UtcNow,
+    //         IpAddress = ip
+    //     });
 
-        url.HitCount++;
+    //     url.HitCount++;
 
-        await db.SaveChangesAsync();
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
-    }
+    //     await db.SaveChangesAsync();
+    // }
+    // catch (Exception ex)
+    // {
+    //     Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
+    // }
 
-    return Results.Redirect(url.LongUrl, false);
+    // return Results.Redirect(url.LongUrl, false);
+    Console.WriteLine($"🔥 HIT: {code}");
+    return Results.Ok($"Code received: {code}");
 });
 
 
