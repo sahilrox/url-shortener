@@ -161,8 +161,46 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
 })
 .RequireRateLimiting("fixed");
 
+app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
+{
+    var url = await db.Urls.FirstOrDefaultAsync(x => x.ShortCode == code);
+
+    if (url == null)
+        return Results.NotFound();
+
+    var totalClicks = await db.ClickEvents
+        .CountAsync(c => c.ShortCode == code);
+
+    var recentClicks = await db.ClickEvents
+        .Where(c => c.ShortCode == code)
+        .OrderByDescending(c => c.Timestamp)
+        .Take(10)
+        .ToListAsync();
+
+
+    var clicksByDate = await db.ClickEvents
+        .Where(c => c.ShortCode == code)
+        .GroupBy(c => c.Timestamp.Date)
+        .Select(g => new
+        {
+            date = g.Key,
+            count = g.Count()
+        })
+        .OrderBy(x => x.date)
+        .ToListAsync();
+
+    return Results.Ok(new
+    {
+        url.ShortCode,
+        url.LongUrl,
+        totalClicks,
+        recentClicks,
+        clicksByDate
+    });
+});
+
 // GET /{code} — placeholder for now  
-app.MapGet("/{code}", async (
+app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}}", async (
     string code,
     UrlRepository repo,
     IConnectionMultiplexer redis,
@@ -172,6 +210,7 @@ app.MapGet("/{code}", async (
     var cacheKey = $"url:{code}";
 
     string? longUrl = await cache.StringGetAsync(cacheKey);
+    Console.WriteLine($"Redirect request for code: {code}");
 
     UrlMapping? url = null;
 
@@ -202,42 +241,6 @@ app.MapGet("/{code}", async (
 })
 .RequireRateLimiting("fixed");
 
-app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
-{
-    var url = await db.Urls.FirstOrDefaultAsync(x => x.ShortCode == code);
 
-    if (url == null)
-        return Results.NotFound();
-
-    var totalClicks = await db.ClickEvents
-        .CountAsync(c => c.ShortCode == code);
-
-    var recentClicks = await db.ClickEvents
-        .Where(c => c.ShortCode == code)
-        .OrderByDescending(c => c.Timestamp)
-        .Take(10)
-        .ToListAsync();
-
-    
-    var clicksByDate = await db.ClickEvents
-        .Where(c => c.ShortCode == code)
-        .GroupBy(c => c.Timestamp.Date)
-        .Select(g => new
-        {
-            date = g.Key,
-            count = g.Count()
-        })
-        .OrderBy(x => x.date)
-        .ToListAsync();
-
-    return Results.Ok(new
-    {
-        url.ShortCode,
-        url.LongUrl,
-        totalClicks,
-        recentClicks,
-        clicksByDate 
-    });
-});
 
 app.Run();
