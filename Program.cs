@@ -41,7 +41,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
     else
     {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres"));
+        // 🔥 TEMP DEBUG (important)
+        Console.WriteLine("⚠️ DATABASE_URL not found, using local connection");
+
+        options.UseNpgsql("Host=localhost;Port=5432;Database=urlshortener;Username=postgres;Password=sahil1999");
     }
 });
 
