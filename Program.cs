@@ -218,12 +218,10 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
 
     if (!string.IsNullOrEmpty(longUrl))
     {
-        // ✅ Cache hit → skip DB lookup
-        url = new UrlMapping { ShortCode = code, LongUrl = longUrl };
+        url = await repo.GetByCodeAsync(code); 
     }
     else
     {
-        // ✅ Fetch from DB
         url = await repo.GetByCodeAsync(code);
 
         if (url != null)
@@ -233,29 +231,31 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     }
 
     if (url == null)
-        return Results.NotFound();
+        return Results.NotFound(new { error = "URL not found" });
 
     if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
-        return Results.NotFound("Link expired");
+        return Results.BadRequest(new { error = "Link expired" });
 
-    // ✅ Track click ALWAYS in DB (even if Redis hit)
-    var ip = context.Connection.RemoteIpAddress?.ToString();
-
-    db.ClickEvents.Add(new ClickEvent
+    // ✅ SAFE analytics tracking
+    try
     {
-        ShortCode = code,
-        Timestamp = DateTime.UtcNow,
-        IpAddress = ip
-    });
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-    // Optional: update hit count only if tracked entity
-    var dbUrl = await repo.GetByCodeAsync(code);
-    if (dbUrl != null)
-    {
-        dbUrl.HitCount++;
+        db.ClickEvents.Add(new ClickEvent
+        {
+            ShortCode = code,
+            Timestamp = DateTime.UtcNow,
+            IpAddress = ip
+        });
+
+        url.HitCount++;
+
+        await db.SaveChangesAsync();
     }
-
-    await db.SaveChangesAsync();
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
+    }
 
     return Results.Redirect(url.LongUrl, permanent: false);
 })
