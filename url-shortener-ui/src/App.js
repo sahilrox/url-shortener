@@ -12,7 +12,7 @@ function App() {
   }
 
   try {
-    const response = await fetch("http://localhost:5031/shorten", {
+    const response = await fetch("https://url-shortener-f45d.onrender.com/shorten", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
