@@ -201,25 +201,29 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
 
 // GET /{code} — placeholder for now  
 app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
+    HttpContext context,
     string code,
     UrlRepository repo,
     IConnectionMultiplexer redis,
     AppDbContext db) =>
 {
+    Console.WriteLine($"🔥 Redirect request for code: {code}");
+
     var cache = redis.GetDatabase();
     var cacheKey = $"url:{code}";
 
     string? longUrl = await cache.StringGetAsync(cacheKey);
-    Console.WriteLine($"Redirect request for code: {code}");
 
     UrlMapping? url = null;
 
     if (!string.IsNullOrEmpty(longUrl))
     {
+        // ✅ Cache hit → skip DB lookup
         url = new UrlMapping { ShortCode = code, LongUrl = longUrl };
     }
     else
     {
+        // ✅ Fetch from DB
         url = await repo.GetByCodeAsync(code);
 
         if (url != null)
@@ -234,13 +238,28 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
         return Results.NotFound("Link expired");
 
-    url.HitCount++;
+    // ✅ Track click ALWAYS in DB (even if Redis hit)
+    var ip = context.Connection.RemoteIpAddress?.ToString();
+
+    db.ClickEvents.Add(new ClickEvent
+    {
+        ShortCode = code,
+        Timestamp = DateTime.UtcNow,
+        IpAddress = ip
+    });
+
+    // Optional: update hit count only if tracked entity
+    var dbUrl = await repo.GetByCodeAsync(code);
+    if (dbUrl != null)
+    {
+        dbUrl.HitCount++;
+    }
+
     await db.SaveChangesAsync();
 
     return Results.Redirect(url.LongUrl, permanent: false);
 })
 .RequireRateLimiting("fixed");
-
 
 
 app.Run();
