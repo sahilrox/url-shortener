@@ -8,10 +8,6 @@ using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("Postgres")
-    ));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -29,25 +25,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-    if (!string.IsNullOrEmpty(databaseUrl))
+    if (string.IsNullOrWhiteSpace(databaseUrl))
     {
-        var uri = new Uri(databaseUrl);
-        var userInfo = uri.UserInfo.Split(':');
-
-        var connectionString =
-            $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
-
-        options.UseNpgsql(connectionString);
+        throw new Exception("DATABASE_URL is NOT set ❌");
     }
-    else
-    {
-        // 🔥 TEMP DEBUG (important)
-        Console.WriteLine("⚠️ DATABASE_URL not found, using local connection");
 
-        options.UseNpgsql("Host=localhost;Port=5432;Database=urlshortener;Username=postgres;Password=sahil1999");
-    }
+    Console.WriteLine("DATABASE_URL FOUND ✅");
+
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+
+    var connectionString =
+        $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+
+    options.UseNpgsql(connectionString);
 });
-
 builder.Services.AddScoped<UrlRepository>();
 
 var app = builder.Build();
