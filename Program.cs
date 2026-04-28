@@ -5,6 +5,7 @@ using UrlShortener.API.Helpers;
 using UrlShortener.API.Models;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,16 @@ builder.Services.AddCors(options =>
         policy => policy.AllowAnyOrigin()
                         .AllowAnyHeader()
                         .AllowAnyMethod());
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("fixed", opt =>
+    {
+        opt.PermitLimit = 100;              // 100 requests
+        opt.Window = TimeSpan.FromMinutes(1); // per minute
+        opt.QueueLimit = 0;
+    });
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -43,6 +54,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<UrlRepository>();
 
 var app = builder.Build();
+app.UseRateLimiter();
 
 
 using (var scope = app.Services.CreateScope())
@@ -86,9 +98,16 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
             return Results.BadRequest("This code is reserved");
     }
 
-    // ✅ Custom code validation
     if (!string.IsNullOrWhiteSpace(request.CustomCode))
     {
+        var reservedCodes = new[] { "help", "admin", "login", "stats" };
+
+        if (reservedCodes.Contains(request.CustomCode.ToLower()))
+            return Results.BadRequest("This code is reserved");
+
+        if (request.CustomCode == "string")
+            return Results.BadRequest("Please provide a valid custom code");
+
         if (!Regex.IsMatch(request.CustomCode, "^[a-zA-Z0-9]+$"))
             return Results.BadRequest("Custom code must be alphanumeric");
 
@@ -103,24 +122,11 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
     }
     else
     {
-        // ✅ Generate unique code
         do
         {
             code = ShortCodeGenerator.Generate();
         }
         while (await repo.GetByCodeAsync(code) != null);
-    }
-
-    if (!string.IsNullOrWhiteSpace(request.CustomCode))
-    {
-        if (request.CustomCode == "string")
-            return Results.BadRequest("Please provide a valid custom code");
-
-        if (!Regex.IsMatch(request.CustomCode, "^[a-zA-Z0-9]+$"))
-            return Results.BadRequest("Custom code must be alphanumeric");
-
-        if (request.CustomCode.Length > 10)
-            return Results.BadRequest("Custom code too long");
     }
 
     var entity = new UrlMapping
@@ -141,7 +147,8 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
         originalUrl = request.Url,
         expiresAt = request.ExpiresAt
     });
-});
+})
+.RequireRateLimiting("fixed");
 
 // GET /{code} — placeholder for now  
 app.MapGet("/{code}", async (
@@ -178,7 +185,8 @@ app.MapGet("/{code}", async (
     await db.SaveChangesAsync();
 
     return Results.Redirect(url.LongUrl);
-});
+})
+.RequireRateLimiting("fixed");
 
 app.MapGet("/stats/{code}", async (string code, UrlRepository repo) =>
 {
