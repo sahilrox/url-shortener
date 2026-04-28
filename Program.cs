@@ -218,12 +218,25 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
         .Take(10)
         .ToListAsync();
 
+    
+    var clicksByDate = await db.ClickEvents
+        .Where(c => c.ShortCode == code)
+        .GroupBy(c => c.Timestamp.Date)
+        .Select(g => new
+        {
+            date = g.Key,
+            count = g.Count()
+        })
+        .OrderBy(x => x.date)
+        .ToListAsync();
+
     return Results.Ok(new
     {
         url.ShortCode,
         url.LongUrl,
         totalClicks,
-        recentClicks
+        recentClicks,
+        clicksByDate 
     });
 });
 
