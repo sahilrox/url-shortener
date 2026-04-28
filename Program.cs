@@ -149,7 +149,7 @@ app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpC
 
     await repo.CreateAsync(entity);
 
-    var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+    var baseUrl = "https://url-shortener-f45d.onrender.com";
 
     return Results.Ok(new
     {
