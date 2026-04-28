@@ -56,8 +56,12 @@ builder.Services.AddScoped<UrlRepository>();
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "localhost:6379";
-    return ConnectionMultiplexer.Connect(redisUrl);
+    var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
+
+    var options = ConfigurationOptions.Parse(redisUrl);
+    options.AbortOnConnectFail = false;
+
+    return ConnectionMultiplexer.Connect(options);
 });
 
 var app = builder.Build();
