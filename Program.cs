@@ -253,8 +253,14 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     // }
 
     // return Results.Redirect(url.LongUrl, false);
-    Console.WriteLine($"🔥 HIT: {code}");
-    return Results.Ok($"Code received: {code}");
+    Console.WriteLine($"🔥 DB TEST: {code}");
+
+    var url = await repo.GetByCodeAsync(code);
+
+    if (url == null)
+        return Results.NotFound("Not found");
+
+    return Results.Ok(url.LongUrl);
 });
 
 
