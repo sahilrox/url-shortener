@@ -1,27 +1,27 @@
 import { useState } from "react";
+import { authFetch } from "./api";
 import Stats from "./Stats";
-import "./App.css";
+import Login from "./Login";
 
 function App() {
   const [url, setUrl] = useState("");
   const [customCode, setCustomCode] = useState("");
   const [result, setResult] = useState("");
-  const [view, setView] = useState("shorten"); // 🔥 toggle
+  const [loggedIn, setLoggedIn] = useState(
+    !!localStorage.getItem("token")
+  );
 
   const handleSubmit = async () => {
     if (!url) {
-      alert("Please enter a URL");
+      alert("Enter URL");
       return;
     }
 
     try {
-      const response = await fetch("https://url-shortener-f45d.onrender.com/shorten", {
+      const response = await authFetch("/shorten", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({
-          url: url,
+          url,
           customCode: customCode || null
         })
       });
@@ -34,69 +34,59 @@ function App() {
 
       const data = await response.json();
       setResult(data.shortUrl);
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+    } catch {
+      alert("Error");
     }
   };
 
+  const logout = () => {
+    localStorage.removeItem("token");
+    window.location.reload();
+  };
+
+  if (!loggedIn) {
+    return <Login onSuccess={() => setLoggedIn(true)} />;
+  }
+
   return (
-    <div className="container">
-  <h1>🔗 URL Shortener</h1>
+    <div style={{ padding: "40px", fontFamily: "Arial" }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h1>🔗 URL Shortener</h1>
+        <button className="button" onClick={logout}>
+          Logout
+        </button>
+      </div>
 
-  <div className="tabs">
-    <div
-      className={`tab ${view === "shorten" ? "active" : ""}`}
-      onClick={() => setView("shorten")}
-    >
-      Shorten
+      <div className="card">
+        <input
+          className="input"
+          placeholder="Enter URL"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+
+        <input
+          className="input"
+          placeholder="Custom code (optional)"
+          value={customCode}
+          onChange={(e) => setCustomCode(e.target.value)}
+        />
+
+        <button className="button" onClick={handleSubmit}>
+          Shorten
+        </button>
+
+        {result && (
+          <div style={{ marginTop: "15px" }}>
+            <a href={result} target="_blank" rel="noreferrer">
+              {result}
+            </a>
+          </div>
+        )}
+      </div>
+
+      <Stats />
     </div>
-    <div
-      className={`tab ${view === "stats" ? "active" : ""}`}
-      onClick={() => setView("stats")}
-    >
-      Analytics
-    </div>
-  </div>
-
-  {view === "shorten" && (
-    <div className="card">
-      <input
-        className="input"
-        placeholder="Enter URL"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-      />
-
-      <input
-        className="input"
-        placeholder="Custom code (optional)"
-        value={customCode}
-        onChange={(e) => setCustomCode(e.target.value)}
-      />
-
-      <button className="button" onClick={handleSubmit}>
-        Shorten 🚀
-      </button>
-
-      {result && (
-        <div className="result">
-          <a href={result} target="_blank" rel="noreferrer">
-            {result}
-          </a>
-
-          <button
-            onClick={() => navigator.clipboard.writeText(result)}
-          >
-            Copy
-          </button>
-        </div>
-      )}
-    </div>
-  )}
-
-  {view === "stats" && <Stats />}
-</div>
   );
 }
 
