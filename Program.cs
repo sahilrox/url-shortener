@@ -63,11 +63,16 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
 
-    var options = ConfigurationOptions.Parse(redisUrl);
+    Console.WriteLine($"REDIS_URL raw: {redisUrl}");
+
+    var cleanUrl = redisUrl.Replace("redis://", "");
+
+    Console.WriteLine($"REDIS_URL cleaned: {cleanUrl}");
+
+    var options = ConfigurationOptions.Parse(cleanUrl);
     options.AbortOnConnectFail = false;
 
     return ConnectionMultiplexer.Connect(options);
-    Console.WriteLine("Redis connected 🚀");
 });
 
 var app = builder.Build();
