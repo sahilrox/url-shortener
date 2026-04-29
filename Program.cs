@@ -63,14 +63,20 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
 
-    Console.WriteLine($"REDIS_URL raw: {redisUrl}");
+    var uri = new Uri(redisUrl);
 
-    var cleanUrl = redisUrl.Replace("redis://", "");
+    var userInfo = uri.UserInfo.Split(':');
 
-    Console.WriteLine($"REDIS_URL cleaned: {cleanUrl}");
+    var options = new ConfigurationOptions
+    {
+        EndPoints = { { uri.Host, uri.Port } },
+        User = userInfo[0],
+        Password = userInfo.Length > 1 ? userInfo[1] : null,
 
-    var options = ConfigurationOptions.Parse(cleanUrl);
-    options.AbortOnConnectFail = false;
+        // 👇 THIS is critical
+        Ssl = true,
+        AbortOnConnectFail = false
+    };
 
     return ConnectionMultiplexer.Connect(options);
 });
