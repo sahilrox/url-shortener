@@ -64,18 +64,24 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
 
     var uri = new Uri(redisUrl);
-
     var userInfo = uri.UserInfo.Split(':');
 
     var options = new ConfigurationOptions
     {
         EndPoints = { { uri.Host, uri.Port } },
+
         User = userInfo[0],
         Password = userInfo.Length > 1 ? userInfo[1] : null,
 
-        // 👇 THIS is critical
+        // 🔥 REQUIRED FOR RENDER
         Ssl = true,
-        AbortOnConnectFail = false
+        AbortOnConnectFail = false,
+
+        // 🔥 ADD THESE (critical)
+        AllowAdmin = true,
+        ConnectRetry = 3,
+        ConnectTimeout = 5000,
+        SyncTimeout = 5000
     };
 
     return ConnectionMultiplexer.Connect(options);
