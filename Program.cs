@@ -188,12 +188,18 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
     var totalClicks = await db.ClickEvents
         .CountAsync(c => c.ShortCode == code);
 
+    // 🔥 FIX: project fields explicitly
     var recentClicks = await db.ClickEvents
         .Where(c => c.ShortCode == code)
         .OrderByDescending(c => c.Timestamp)
         .Take(10)
+        .Select(c => new
+        {
+            timestamp = c.Timestamp,
+            ipAddress = c.IpAddress,
+            country = c.Country   // 👈 IMPORTANT
+        })
         .ToListAsync();
-
 
     var clicksByDate = await db.ClickEvents
         .Where(c => c.ShortCode == code)
@@ -206,13 +212,25 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
         .OrderBy(x => x.date)
         .ToListAsync();
 
+    var clicksByCountry = await db.ClickEvents
+        .Where(c => c.ShortCode == code)
+        .GroupBy(c => c.Country)
+        .Select(g => new
+        {
+            country = g.Key,
+            count = g.Count()
+        })
+        .OrderByDescending(x => x.count)
+        .ToListAsync();
+
     return Results.Ok(new
     {
-        url.ShortCode,
-        url.LongUrl,
+        shortCode = url.ShortCode,
+        longUrl = url.LongUrl,
         totalClicks,
         recentClicks,
-        clicksByDate
+        clicksByDate,
+        clicksByCountry
     });
 });
 
@@ -237,11 +255,35 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
+        if (ip == "::1" || ip == "127.0.0.1")
+        {
+            ip = "8.8.8.8"; // Google DNS (US)
+        }
+
+        string country = "Unknown";
+
+        try
+        {
+            using var client = new HttpClient();
+
+            var geo = await client.GetFromJsonAsync<IpResponse>($"http://ip-api.com/json/{ip}");
+
+            if (geo != null && geo.status == "success")
+            {
+                country = geo.country;
+            }
+        }
+        catch (Exception geoEx)
+        {
+            Console.WriteLine($"⚠️ Geo lookup failed: {geoEx.Message}");
+        }
+
         db.ClickEvents.Add(new ClickEvent
         {
             ShortCode = code,
             Timestamp = DateTime.UtcNow,
-            IpAddress = ip
+            IpAddress = ip,
+            Country = country   // 🔥 NEW FIELD
         });
 
         url.HitCount++;

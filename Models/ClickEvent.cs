@@ -6,4 +6,5 @@ public class ClickEvent
     public string ShortCode { get; set; } = "";
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public string? IpAddress { get; set; }
+    public string Country { get; set; } = "Unknown";
 }
