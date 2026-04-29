@@ -8,11 +8,13 @@ function Stats() {
   const [code, setCode] = useState("");
   const [data, setData] = useState({});
   const [error, setError] = useState("");
+  const [range, setRange] = useState("all");
+  
 
   const fetchStats = async () => {
     try {
       setError("");
-      const res = await fetch(`${API_BASE}/stats/${code}`);
+      const res = await fetch(`${API_BASE}/stats/${code}?range=${range}`);
 
       if (!res.ok) throw new Error();
 
@@ -104,6 +106,24 @@ function Stats() {
     }
   };
 
+  const devicePieData =
+  data?.clicksByDevice?.length > 0
+    ? {
+        labels: data.clicksByDevice.map(d => d.device),
+        datasets: [
+          {
+            data: data.clicksByDevice.map(d => d.count),
+            backgroundColor: [
+              "#22c55e",
+              "#3b82f6",
+              "#f59e0b",
+              "#ef4444"
+            ]
+          }
+        ]
+      }
+    : null;
+
   return (
     <div className="card">
       <h2>📊 Analytics</h2>
@@ -116,6 +136,16 @@ function Stats() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
+        <select
+            className="input"
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            >
+            <option value="all">All Time</option>
+            <option value="24h">Last 24h</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+        </select>
 
         <button className="button" onClick={fetchStats}>
           Go
@@ -187,6 +217,8 @@ function Stats() {
             </div>
           )}
 
+          
+
           {/* 🧾 Recent Clicks */}
           {data?.recentClicks?.length > 0 && (
             <div className="recent">
@@ -202,6 +234,27 @@ function Stats() {
               ))}
             </div>
           )}
+
+          {data?.clicksByDevice?.length > 0 && (
+            <div style={{ marginTop: "20px" }}>
+                <h3>📱 Devices</h3>
+
+                {data.clicksByDevice.map((d, i) => (
+                <div key={i} className="recent-item">
+                    {d.device} — {d.count} clicks
+                </div>
+                ))}
+            </div>
+)}
+
+          {devicePieData && (
+            <div style={{ marginTop: "30px" }}>
+                <h3>📱 Device Distribution</h3>
+                <Pie data={devicePieData} options={pieOptions} />
+            </div>
+)}
+
+
         </>
       )}
     </div>

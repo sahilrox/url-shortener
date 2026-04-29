@@ -1,341 +1,260 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using UrlShortener.API.Data;
-using UrlShortener.API.Repositories;
-using UrlShortener.API.Helpers;
 using UrlShortener.API.Models;
-using Microsoft.Extensions.Caching.Memory;
-using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.RateLimiting;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddMemoryCache();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend",
-        policy => policy.AllowAnyOrigin()
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
-});
-
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("fixed", opt =>
-    {
-        opt.PermitLimit = 100;              // 100 requests
-        opt.Window = TimeSpan.FromMinutes(1); // per minute
-        opt.QueueLimit = 0;
-    });
-});
-
+// DB
 builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    if (!string.IsNullOrWhiteSpace(databaseUrl))
+// JWT
+var key = "THIS_IS_A_SUPER_SECRET_KEY_12345";
+
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
     {
-        Console.WriteLine("Using Render DB ✅");
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(key))
+        };
+    });
 
-        var uri = new Uri(databaseUrl);
-        var userInfo = uri.UserInfo.Split(':');
-        var port = uri.Port > 0 ? uri.Port : 5432;
-
-        var connectionString =
-            $"Host={uri.Host};Port={port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
-
-        options.UseNpgsql(connectionString);
-    }
-    else
-    {
-        Console.WriteLine("Using LOCAL DB");
-
-        options.UseNpgsql("Host=localhost;Port=5432;Database=urlshortener;Username=postgres;Password=sahil1999");
-    }
-});
-builder.Services.AddScoped<UrlRepository>();
-
-// builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-// {
-//     var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
-
-//     var uri = new Uri(redisUrl);
-//     var userInfo = uri.UserInfo.Split(':');
-
-//     var options = new ConfigurationOptions
-//     {
-//         EndPoints = { { uri.Host, uri.Port } },
-
-//         User = userInfo[0],
-//         Password = userInfo.Length > 1 ? userInfo[1] : null,
-
-//         // 🔥 REQUIRED FOR RENDER
-//         Ssl = true,
-//         AbortOnConnectFail = false,
-
-//         // 🔥 ADD THESE (critical)
-//         AllowAdmin = true,
-//         ConnectRetry = 3,
-//         ConnectTimeout = 5000,
-//         SyncTimeout = 5000
-//     };
-
-//     return ConnectionMultiplexer.Connect(options);
-// });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// 🔥 Auto-migrate (important for Render)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
-app.UseRateLimiter();
 
+app.UseAuthentication();
+app.UseAuthorization();
 
-using (var scope = app.Services.CreateScope())
+app.MapGet("/", () => "API Running");
+
+// ================= AUTH =================
+
+app.MapPost("/register", async (AuthRequest req, AppDbContext db) =>
 {
-    try
+    var exists = await db.Users.AnyAsync(u => u.Email == req.Email);
+    if (exists)
+        return Results.BadRequest("User already exists");
+
+    var user = new User
     {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.Database.Migrate();
-        Console.WriteLine("Migration completed ✅");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Migration failed ❌");
-        Console.WriteLine(ex.Message);
-    }
-}
-
-
-app.UseSwagger();
-app.UseSwaggerUI();
-
-app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
-
-app.MapGet("/", () => "URL Shortener API is running 🚀");
-
-// POST /shorten — placeholder for now
-app.MapPost("/shorten", async (UrlRepository repo, ShortenRequest request, HttpContext httpContext) =>
-{
-    // ✅ Validate URL
-    if (!Uri.TryCreate(request.Url, UriKind.Absolute, out _))
-        return Results.BadRequest(new { error = "Invalid URL" });
-
-    string code;
-
-    var reservedCodes = new[] { "help", "admin", "login", "stats" };
-
-
-    if (!string.IsNullOrWhiteSpace(request.CustomCode))
-    {        
-
-        if (reservedCodes.Contains(request.CustomCode.ToLower()))
-            return Results.BadRequest(new { error = "This code is reserved" });
-
-        if (request.CustomCode == "string")
-            return Results.BadRequest(new { error = "Please provide a valid custom code" });
-
-        if (!Regex.IsMatch(request.CustomCode, "^[a-zA-Z0-9]+$"))
-            return Results.BadRequest(new { error = "Custom code must be alphanumeric" });
-
-        if (request.CustomCode.Length > 10)
-            return Results.BadRequest(new { error = "Custom code too long" });
-
-        var exists = await repo.GetByCodeAsync(request.CustomCode);
-        if (exists != null)
-            return Results.BadRequest(new { error = "Custom code already exists" });
-
-        code = request.CustomCode;
-    }
-    else
-    {
-        do
-        {
-            code = ShortCodeGenerator.Generate();
-        }
-        while (await repo.GetByCodeAsync(code) != null);
-    }
-
-    var entity = new UrlMapping
-    {
-        ShortCode = code,
-        LongUrl = request.Url,
-        ExpiresAt = request.ExpiresAt
+        Email = req.Email,
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
     };
 
-    await repo.CreateAsync(entity);
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
 
-    var baseUrl = "https://url-shortener-f45d.onrender.com";
+    return Results.Ok();
+});
+
+app.MapPost("/login", async (AuthRequest req, AppDbContext db) =>
+{
+    var user = await db.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
+
+    if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
+        return Results.BadRequest("Invalid credentials");
+
+    var token = new JwtSecurityToken(
+        claims: new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email)
+        },
+        expires: DateTime.UtcNow.AddDays(1),
+        signingCredentials: new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+            SecurityAlgorithms.HmacSha256Signature)
+    );
 
     return Results.Ok(new
     {
-        shortUrl = $"{baseUrl}/{code}",
-        code,
-        originalUrl = request.Url,
-        expiresAt = request.ExpiresAt
+        token = new JwtSecurityTokenHandler().WriteToken(token)
     });
-})
-.RequireRateLimiting("fixed");
+});
 
-app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
+// ================= SHORTEN =================
+
+app.MapPost("/shorten", async (
+    HttpContext context,
+    UrlRequest req,
+    AppDbContext db) =>
+{
+    var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null)
+        return Results.Unauthorized();
+
+    var code = req.CustomCode ?? Guid.NewGuid().ToString()[..6];
+
+    var url = new UrlMapping
+    {
+        ShortCode = code,
+        LongUrl = req.Url,
+        CreatedAt = DateTime.UtcNow,
+        UserId = int.Parse(userId)
+    };
+
+    db.Urls.Add(url);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new
+    {
+        shortUrl = $"https://url-shortener-f45d.onrender.com/{code}",
+        code
+    });
+}).RequireAuthorization();
+
+// ================= REDIRECT =================
+
+app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
+    HttpContext context,
+    string code,
+    AppDbContext db) =>
 {
     var url = await db.Urls.FirstOrDefaultAsync(x => x.ShortCode == code);
 
     if (url == null)
         return Results.NotFound();
 
-    var totalClicks = await db.ClickEvents
-        .CountAsync(c => c.ShortCode == code);
+    var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-    // 🔥 FIX: project fields explicitly
+    if (ip == "::1" || ip == "127.0.0.1")
+        ip = "8.8.8.8";
+
+    string country = "Unknown";
+
+    try
+    {
+        using var client = new HttpClient();
+        var geo = await client.GetFromJsonAsync<IpResponse>($"http://ip-api.com/json/{ip}");
+
+        if (geo != null && geo.status == "success")
+            country = geo.country;
+    }
+    catch { }
+
+    var userAgent = context.Request.Headers["User-Agent"].ToString().ToLower();
+
+    string device = "Desktop";
+    if (userAgent.Contains("mobile") || userAgent.Contains("android") || userAgent.Contains("iphone"))
+        device = "Mobile";
+    else if (userAgent.Contains("tablet"))
+        device = "Tablet";
+
+    db.ClickEvents.Add(new ClickEvent
+    {
+        ShortCode = code,
+        Timestamp = DateTime.UtcNow,
+        IpAddress = ip,
+        Country = country,
+        Device = device
+    });
+
+    url.HitCount++;
+
+    await db.SaveChangesAsync();
+
+    return Results.Redirect(url.LongUrl);
+});
+
+// ================= STATS =================
+
+app.MapGet("/stats/{code}", async (
+    HttpContext context,
+    string code,
+    string? range,
+    AppDbContext db) =>
+{
+    var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (userId == null)
+        return Results.Unauthorized();
+
+    DateTime fromDate = DateTime.MinValue;
+
+    if (range == "24h") fromDate = DateTime.UtcNow.AddHours(-24);
+    else if (range == "7d") fromDate = DateTime.UtcNow.AddDays(-7);
+    else if (range == "30d") fromDate = DateTime.UtcNow.AddDays(-30);
+
+    var totalClicks = await db.ClickEvents
+        .Where(c => c.ShortCode == code && c.Timestamp >= fromDate)
+        .CountAsync();
+
     var recentClicks = await db.ClickEvents
-        .Where(c => c.ShortCode == code)
+        .Where(c => c.ShortCode == code && c.Timestamp >= fromDate)
         .OrderByDescending(c => c.Timestamp)
         .Take(10)
         .Select(c => new
         {
             timestamp = c.Timestamp,
-            ipAddress = c.IpAddress,
             country = c.Country,
-            device = c.Device   // 👈 IMPORTANT
+            device = c.Device
         })
         .ToListAsync();
 
     var clicksByDate = await db.ClickEvents
-        .Where(c => c.ShortCode == code)
+        .Where(c => c.ShortCode == code && c.Timestamp >= fromDate)
         .GroupBy(c => c.Timestamp.Date)
-        .Select(g => new
-        {
-            date = g.Key,
-            count = g.Count()
-        })
-        .OrderBy(x => x.date)
+        .Select(g => new { date = g.Key, count = g.Count() })
         .ToListAsync();
 
     var clicksByCountry = await db.ClickEvents
-        .Where(c => c.ShortCode == code)
-        .GroupBy(c => c.Country)
-        .Select(g => new
-        {
-            country = g.Key,
-            count = g.Count()
-        })
-        .OrderByDescending(x => x.count)
+        .Where(c => c.ShortCode == code && c.Timestamp >= fromDate)
+        .GroupBy(c => c.Country ?? "Unknown")
+        .Select(g => new { country = g.Key, count = g.Count() })
         .ToListAsync();
 
     var clicksByDevice = await db.ClickEvents
-    .Where(c => c.ShortCode == code)
-    .GroupBy(c => c.Device)
-    .Select(g => new
-    {
-        device = g.Key,
-        count = g.Count()
-    })
-    .OrderByDescending(x => x.count)
-    .ToListAsync();
+        .Where(c => c.ShortCode == code && c.Timestamp >= fromDate)
+        .GroupBy(c => c.Device ?? "Unknown")
+        .Select(g => new { device = g.Key, count = g.Count() })
+        .ToListAsync();
 
     return Results.Ok(new
     {
-        shortCode = url.ShortCode,
-        longUrl = url.LongUrl,
         totalClicks,
         recentClicks,
         clicksByDate,
         clicksByCountry,
         clicksByDevice
     });
-});
-
-// GET /{code} — placeholder for now  
-app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
-    HttpContext context,
-    string code,
-    UrlRepository repo,
-    AppDbContext db) =>
-{
-    Console.WriteLine($"🔥 Redirect request for code: {code}");
-
-    var url = await repo.GetByCodeAsync(code);
-
-    if (url == null)
-        return Results.NotFound(new { error = "URL not found" });
-
-    if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
-        return Results.BadRequest(new { error = "Link expired" });
-
-    try
-    {
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-
-        // 🧪 Local testing fix
-        if (ip == "::1" || ip == "127.0.0.1")
-        {
-            ip = "8.8.8.8";
-        }
-
-        string country = "Unknown";
-
-        try
-        {
-            using var client = new HttpClient();
-
-            var geo = await client.GetFromJsonAsync<IpResponse>($"http://ip-api.com/json/{ip}");
-
-            if (geo != null && geo.status == "success")
-            {
-                country = geo.country;
-            }
-        }
-        catch (Exception geoEx)
-        {
-            Console.WriteLine($"⚠️ Geo lookup failed: {geoEx.Message}");
-        }
-
-        // 🔥 DEVICE DETECTION STARTS HERE
-        var userAgent = context.Request.Headers["User-Agent"].ToString().ToLower();
-
-        string device = "Desktop";
-
-        if (string.IsNullOrEmpty(userAgent))
-        {
-            device = "Unknown";
-        }
-        else if (userAgent.Contains("mobile"))
-        {
-            device = "Mobile";
-        }
-        else if (userAgent.Contains("tablet"))
-        {
-            device = "Tablet";
-        }
-        // 🔥 DEVICE DETECTION ENDS HERE
-
-        db.ClickEvents.Add(new ClickEvent
-        {
-            ShortCode = code,
-            Timestamp = DateTime.UtcNow,
-            IpAddress = ip,
-            Country = country,
-            Device = device   // 👈 NEW FIELD
-        });
-
-        url.HitCount++;
-
-        await db.SaveChangesAsync();
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
-    }
-
-    return Results.Redirect(url.LongUrl, false);
-});
-
+}).RequireAuthorization();
 
 app.Run();
+
+// ================= DTOs =================
+
+public class AuthRequest
+{
+    public string Email { get; set; }
+    public string Password { get; set; }
+}
+
+public class UrlRequest
+{
+    public string Url { get; set; }
+    public string? CustomCode { get; set; }
+}
+
+public class IpResponse
+{
+    public string status { get; set; }
+    public string country { get; set; }
+}

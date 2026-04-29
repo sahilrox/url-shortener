@@ -8,4 +8,5 @@ public class UrlMapping
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ExpiresAt { get; set; }
     public int HitCount { get; set; } = 0;
+    public int UserId { get; set; }
 }
