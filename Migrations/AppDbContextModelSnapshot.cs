@@ -34,6 +34,10 @@ namespace UrlShortener.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Device")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("IpAddress")
                         .HasColumnType("text");
 

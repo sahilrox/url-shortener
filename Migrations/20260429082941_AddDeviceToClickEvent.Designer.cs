@@ -12,7 +12,7 @@ using UrlShortener.API.Data;
 namespace UrlShortener.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260429075045_AddDeviceToClickEvent")]
+    [Migration("20260429082941_AddDeviceToClickEvent")]
     partial class AddDeviceToClickEvent
     {
         /// <inheritdoc />
@@ -34,6 +34,10 @@ namespace UrlShortener.API.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Device")
                         .IsRequired()
                         .HasColumnType("text");
 
