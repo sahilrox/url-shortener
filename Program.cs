@@ -197,7 +197,8 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
         {
             timestamp = c.Timestamp,
             ipAddress = c.IpAddress,
-            country = c.Country   // 👈 IMPORTANT
+            country = c.Country,
+            device = c.Device   // 👈 IMPORTANT
         })
         .ToListAsync();
 
@@ -223,6 +224,17 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
         .OrderByDescending(x => x.count)
         .ToListAsync();
 
+    var clicksByDevice = await db.ClickEvents
+    .Where(c => c.ShortCode == code)
+    .GroupBy(c => c.Device)
+    .Select(g => new
+    {
+        device = g.Key,
+        count = g.Count()
+    })
+    .OrderByDescending(x => x.count)
+    .ToListAsync();
+
     return Results.Ok(new
     {
         shortCode = url.ShortCode,
@@ -230,7 +242,8 @@ app.MapGet("/stats/{code}", async (string code, AppDbContext db) =>
         totalClicks,
         recentClicks,
         clicksByDate,
-        clicksByCountry
+        clicksByCountry,
+        clicksByDevice
     });
 });
 
@@ -255,9 +268,10 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
+        // 🧪 Local testing fix
         if (ip == "::1" || ip == "127.0.0.1")
         {
-            ip = "8.8.8.8"; // Google DNS (US)
+            ip = "8.8.8.8";
         }
 
         string country = "Unknown";
@@ -278,12 +292,32 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
             Console.WriteLine($"⚠️ Geo lookup failed: {geoEx.Message}");
         }
 
+        // 🔥 DEVICE DETECTION STARTS HERE
+        var userAgent = context.Request.Headers["User-Agent"].ToString().ToLower();
+
+        string device = "Desktop";
+
+        if (string.IsNullOrEmpty(userAgent))
+        {
+            device = "Unknown";
+        }
+        else if (userAgent.Contains("mobile"))
+        {
+            device = "Mobile";
+        }
+        else if (userAgent.Contains("tablet"))
+        {
+            device = "Tablet";
+        }
+        // 🔥 DEVICE DETECTION ENDS HERE
+
         db.ClickEvents.Add(new ClickEvent
         {
             ShortCode = code,
             Timestamp = DateTime.UtcNow,
             IpAddress = ip,
-            Country = country   // 🔥 NEW FIELD
+            Country = country,
+            Device = device   // 👈 NEW FIELD
         });
 
         url.HitCount++;

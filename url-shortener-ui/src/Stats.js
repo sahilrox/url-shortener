@@ -1,12 +1,12 @@
 import { useState } from "react";
 import "chart.js/auto";
-import { Line } from "react-chartjs-2";
+import { Line, Pie } from "react-chartjs-2";
 
 const API_BASE = "https://url-shortener-f45d.onrender.com";
 
 function Stats() {
   const [code, setCode] = useState("");
-  const [data, setData] = useState(null);
+  const [data, setData] = useState({});
   const [error, setError] = useState("");
 
   const fetchStats = async () => {
@@ -20,40 +20,64 @@ function Stats() {
       setData(result);
     } catch {
       setError("Invalid code or failed to fetch stats");
-      setData(null);
+      setData({}); // ✅ NEVER set null
     }
   };
 
-  // 📊 Chart Data
-  const chartData = data && {
-    labels: data.clicksByDate.map(x =>
-      new Date(x.date).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-      })
-    ),
-    datasets: [
-      {
-        label: "Clicks",
-        data: data.clicksByDate.map(x => x.count),
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59,130,246,0.25)",
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointHoverRadius: 7
-      }
-    ]
-  };
+  // 📊 Line Chart Data (SAFE)
+  const chartData =
+    data?.clicksByDate?.length > 0
+      ? {
+          labels: data.clicksByDate.map(x =>
+            new Date(x.date).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          ),
+          datasets: [
+            {
+              label: "Clicks",
+              data: data.clicksByDate.map(x => x.count),
+              borderColor: "#3b82f6",
+              backgroundColor: "rgba(59,130,246,0.25)",
+              fill: true,
+              tension: 0.4,
+              pointRadius: 4,
+              pointHoverRadius: 7
+            }
+          ]
+        }
+      : null;
+
+  // 🥧 Pie Chart Data (SAFE)
+  const pieData =
+    data?.clicksByCountry?.length > 0
+      ? {
+          labels: data.clicksByCountry.map(c => c.country || "Unknown"),
+          datasets: [
+            {
+              data: data.clicksByCountry.map(c => c.count),
+              backgroundColor: [
+                "#3b82f6",
+                "#22c55e",
+                "#f59e0b",
+                "#ef4444",
+                "#a855f7",
+                "#06b6d4"
+              ],
+              borderWidth: 2,
+              borderColor: "#1e293b"
+            }
+          ]
+        }
+      : null;
 
   // ⚙️ Chart Options
   const options = {
     responsive: true,
     plugins: {
       legend: {
-        labels: {
-          color: "white"
-        }
+        labels: { color: "white" }
       },
       tooltip: {
         mode: "index",
@@ -68,6 +92,14 @@ function Stats() {
       y: {
         ticks: { color: "white" },
         grid: { color: "#334155" }
+      }
+    }
+  };
+
+  const pieOptions = {
+    plugins: {
+      legend: {
+        labels: { color: "white" }
       }
     }
   };
@@ -90,9 +122,12 @@ function Stats() {
         </button>
       </div>
 
-      {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
+      {error && (
+        <p style={{ color: "red", marginTop: "10px" }}>{error}</p>
+      )}
 
-      {data && (
+      {/* Only render when data is loaded */}
+      {data?.totalClicks !== undefined && (
         <>
           {/* Stats Cards */}
           <div className="stats-grid">
@@ -114,40 +149,59 @@ function Stats() {
             </div>
           </div>
 
-          {/* 📈 Chart */}
+          {/* 📈 Line Chart */}
           {chartData && (
             <div style={{ marginTop: "20px" }}>
               <Line data={chartData} options={options} />
             </div>
           )}
 
+          {/* Low data message */}
+          {data.totalClicks < 2 && (
+            <p style={{ marginTop: "10px", opacity: 0.7 }}>
+              Not enough data for trends yet
+            </p>
+          )}
+
           {/* 🌍 Top Countries */}
-          {data.clicksByCountry && data.clicksByCountry.length > 0 && (
+          {data?.clicksByCountry?.length > 0 && (
             <div style={{ marginTop: "20px" }}>
               <h3>🌍 Top Countries</h3>
 
               {data.clicksByCountry.map((c, i) => (
                 <div key={i} className="recent-item">
-                  🌍 {c.country} — {c.count} clicks
+                  {c.country && c.country !== "Unknown"
+                    ? `🌍 ${c.country}`
+                    : "🌍 Unknown"}{" "}
+                  — {c.count} clicks
                 </div>
               ))}
             </div>
           )}
 
-          {/* 🧾 Recent Clicks */}
-          <div className="recent">
-            <h3>Recent Clicks</h3>
+          {/* 🥧 Pie Chart */}
+          {pieData && (
+            <div style={{ marginTop: "30px" }}>
+              <h3>🌍 Click Distribution</h3>
+              <Pie data={pieData} options={pieOptions} />
+            </div>
+          )}
 
-            {data.recentClicks.map((c, i) => (
-              <div key={i} className="recent-item">
-                {new Date(c.timestamp).toLocaleString()}
-                {" — "}
-                {c.country && c.country !== "Unknown"
-                  ? `🌍 ${c.country}`
-                  : `IP: ${c.ipAddress}`}
-              </div>
-            ))}
-          </div>
+          {/* 🧾 Recent Clicks */}
+          {data?.recentClicks?.length > 0 && (
+            <div className="recent">
+              <h3>Recent Clicks</h3>
+
+              {data.recentClicks.map((c, i) => (
+                <div key={i} className="recent-item">
+                  {new Date(c.timestamp).toLocaleString()} —{" "}
+                  {c.country && c.country !== "Unknown"
+                    ? `🌍 ${c.country}`
+                    : `IP: ${c.ipAddress}`}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>
