@@ -253,14 +253,39 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     // }
 
     // return Results.Redirect(url.LongUrl, false);
-    Console.WriteLine($"🔥 DB TEST: {code}");
+    Console.WriteLine($"🔥 REDIS TEST: {code}");
+
+    var cache = redis.GetDatabase();
+
+    try
+    {
+        var cached = await cache.StringGetAsync($"url:{code}");
+
+        if (!string.IsNullOrEmpty(cached))
+        {
+            return Results.Ok($"From cache: {cached}");
+        }
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok($"Redis ERROR: {ex.Message}");
+    }
 
     var url = await repo.GetByCodeAsync(code);
 
     if (url == null)
-        return Results.NotFound("Not found");
+        return Results.NotFound();
 
-    return Results.Ok(url.LongUrl);
+    try
+    {
+        await cache.StringSetAsync($"url:{code}", url.LongUrl);
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok($"Redis SET ERROR: {ex.Message}");
+    }
+
+    return Results.Ok($"From DB: {url.LongUrl}");
 });
 
 
