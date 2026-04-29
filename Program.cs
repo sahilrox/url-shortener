@@ -59,33 +59,33 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 builder.Services.AddScoped<UrlRepository>();
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
+// builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+// {
+//     var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL");
 
-    var uri = new Uri(redisUrl);
-    var userInfo = uri.UserInfo.Split(':');
+//     var uri = new Uri(redisUrl);
+//     var userInfo = uri.UserInfo.Split(':');
 
-    var options = new ConfigurationOptions
-    {
-        EndPoints = { { uri.Host, uri.Port } },
+//     var options = new ConfigurationOptions
+//     {
+//         EndPoints = { { uri.Host, uri.Port } },
 
-        User = userInfo[0],
-        Password = userInfo.Length > 1 ? userInfo[1] : null,
+//         User = userInfo[0],
+//         Password = userInfo.Length > 1 ? userInfo[1] : null,
 
-        // 🔥 REQUIRED FOR RENDER
-        Ssl = true,
-        AbortOnConnectFail = false,
+//         // 🔥 REQUIRED FOR RENDER
+//         Ssl = true,
+//         AbortOnConnectFail = false,
 
-        // 🔥 ADD THESE (critical)
-        AllowAdmin = true,
-        ConnectRetry = 3,
-        ConnectTimeout = 5000,
-        SyncTimeout = 5000
-    };
+//         // 🔥 ADD THESE (critical)
+//         AllowAdmin = true,
+//         ConnectRetry = 3,
+//         ConnectTimeout = 5000,
+//         SyncTimeout = 5000
+//     };
 
-    return ConnectionMultiplexer.Connect(options);
-});
+//     return ConnectionMultiplexer.Connect(options);
+// });
 
 var app = builder.Build();
 app.UseRateLimiter();
@@ -221,88 +221,39 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     HttpContext context,
     string code,
     UrlRepository repo,
-    IConnectionMultiplexer redis,
     AppDbContext db) =>
 {
-    // Console.WriteLine($"🔥 Redirect request for code: {code}");
-
-    // var cache = redis.GetDatabase();
-    // var cacheKey = $"url:{code}";
-
-    // string? longUrl = await cache.StringGetAsync(cacheKey);
-
-    // UrlMapping? url = null;
-
-    // // ✅ Always get DB entity FIRST
-    // url = await repo.GetByCodeAsync(code);
-
-    // if (url == null)
-    //     return Results.NotFound(new { error = "URL not found" });
-
-    // // ✅ Cache it if not present
-    // if (string.IsNullOrEmpty(longUrl))
-    // {
-    //     await cache.StringSetAsync(cacheKey, url.LongUrl, TimeSpan.FromMinutes(10));
-    // }
-
-    // if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
-    //     return Results.BadRequest(new { error = "Link expired" });
-
-    // // ✅ SAFE analytics
-    // try
-    // {
-    //     var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-
-    //     db.ClickEvents.Add(new ClickEvent
-    //     {
-    //         ShortCode = code,
-    //         Timestamp = DateTime.UtcNow,
-    //         IpAddress = ip
-    //     });
-
-    //     url.HitCount++;
-
-    //     await db.SaveChangesAsync();
-    // }
-    // catch (Exception ex)
-    // {
-    //     Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
-    // }
-
-    // return Results.Redirect(url.LongUrl, false);
-    Console.WriteLine($"🔥 REDIS TEST: {code}");
-
-    var cache = redis.GetDatabase();
-
-    try
-    {
-        var cached = await cache.StringGetAsync($"url:{code}");
-
-        if (!string.IsNullOrEmpty(cached))
-        {
-            return Results.Ok($"From cache: {cached}");
-        }
-    }
-    catch (Exception ex)
-    {
-        return Results.Ok($"Redis ERROR: {ex.Message}");
-    }
+    Console.WriteLine($"🔥 Redirect request for code: {code}");
 
     var url = await repo.GetByCodeAsync(code);
 
     if (url == null)
-        return Results.NotFound();
+        return Results.NotFound(new { error = "URL not found" });
+
+    if (url.ExpiresAt != null && url.ExpiresAt < DateTime.UtcNow)
+        return Results.BadRequest(new { error = "Link expired" });
 
     try
     {
-        await cache.StringSetAsync($"url:{code}", url.LongUrl);
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        db.ClickEvents.Add(new ClickEvent
+        {
+            ShortCode = code,
+            Timestamp = DateTime.UtcNow,
+            IpAddress = ip
+        });
+
+        url.HitCount++;
+
+        await db.SaveChangesAsync();
     }
     catch (Exception ex)
     {
-        return Results.Ok($"Redis SET ERROR: {ex.Message}");
+        Console.WriteLine($"⚠️ Analytics error: {ex.Message}");
     }
 
-    return Results.Ok($"From DB: {url.LongUrl}");
+    return Results.Redirect(url.LongUrl, false);
 });
 
 
