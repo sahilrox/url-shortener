@@ -11,18 +11,31 @@ var builder = WebApplication.CreateBuilder(args);
 
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-var connectionString =
-    !string.IsNullOrEmpty(databaseUrl)
-        ? databaseUrl
-        : builder.Configuration.GetConnectionString("DefaultConnection");
+string connectionString;
 
-if (string.IsNullOrEmpty(connectionString))
+if (!string.IsNullOrEmpty(databaseUrl))
 {
-    throw new Exception("❌ No database connection string found");
-}
+    var uri = new Uri(databaseUrl);
 
-// Fix SSL for Render
-connectionString += ";SSL Mode=Require;Trust Server Certificate=true";
+    var userInfo = uri.UserInfo.Split(':');
+
+    var builderConn = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port,
+        Username = userInfo[0],
+        Password = userInfo[1],
+        Database = uri.AbsolutePath.Trim('/'),
+        SslMode = Npgsql.SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    connectionString = builderConn.ToString();
+}
+else
+{
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
