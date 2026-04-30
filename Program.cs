@@ -9,9 +9,19 @@ using UrlShortener.API.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DB
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration["DATABASE_URL"];
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new Exception("❌ Database connection string not found");
+}
+
+connectionString += ";SSL Mode=Require;Trust Server Certificate=true";
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 // JWT
 var key = "THIS_IS_A_SUPER_SECRET_KEY_12345";
