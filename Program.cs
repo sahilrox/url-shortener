@@ -50,20 +50,31 @@ app.MapGet("/", () => "API Running");
 
 app.MapPost("/register", async (AuthRequest req, AppDbContext db) =>
 {
-    var exists = await db.Users.AnyAsync(u => u.Email == req.Email);
-    if (exists)
-        return Results.BadRequest("User already exists");
-
-    var user = new User
+    try
     {
-        Email = req.Email,
-        PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
-    };
+        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+            return Results.BadRequest("Email and password required");
 
-    db.Users.Add(user);
-    await db.SaveChangesAsync();
+        var exists = await db.Users.AnyAsync(u => u.Email == req.Email);
+        if (exists)
+            return Results.BadRequest("User already exists");
 
-    return Results.Ok();
+        var user = new User
+        {
+            Email = req.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
+        };
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        return Results.Ok("Registered successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Register error: {ex}");
+        return Results.Problem(ex.Message);
+    }
 });
 
 app.MapPost("/login", async (AuthRequest req, AppDbContext db) =>
@@ -173,6 +184,30 @@ app.MapGet("/{code:regex(^[a-zA-Z0-9]+$)}", async (
     await db.SaveChangesAsync();
 
     return Results.Redirect(url.LongUrl);
+});
+
+app.MapGet("/debug-db", async (AppDbContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+
+        // Check if Users table exists
+        var exists = await db.Database.ExecuteSqlRawAsync(@"
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_name = 'Users';
+        ");
+
+        return Results.Ok(new
+        {
+            canConnect,
+            usersTableExists = exists == 1
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 // ================= STATS =================

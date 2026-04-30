@@ -12,10 +12,16 @@ export default function Login({ onSuccess }) {
     setError("");
     const endpoint = mode === "login" ? "/login" : "/register";
 
+    console.log("Sending register:", { email, password });
     const res = await fetch(`${API_BASE}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: email,
+            password: password
+        })
     });
 
     if (!res.ok) {
@@ -44,7 +50,7 @@ export default function Login({ onSuccess }) {
         value={email} onChange={(e) => setEmail(e.target.value)} />
 
       <input className="input" type="password" placeholder="Password"
-        value={password} onChange={(e) => setPassword(e.target.value)} />
+        value={password} onChange={(e) => setPassword(e.target.value)} /> 
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
