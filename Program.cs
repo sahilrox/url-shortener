@@ -57,15 +57,6 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization();
 
-var app = builder.Build();
-
-// 🔥 Auto-migrate (important for Render)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -77,6 +68,17 @@ builder.Services.AddCors(options =>
                 .AllowAnyMethod();
         });
 });
+
+var app = builder.Build();
+
+// 🔥 Auto-migrate (important for Render)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
+
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
