@@ -16,13 +16,12 @@ string connectionString;
 if (!string.IsNullOrEmpty(databaseUrl))
 {
     var uri = new Uri(databaseUrl);
-
     var userInfo = uri.UserInfo.Split(':');
 
     var builderConn = new Npgsql.NpgsqlConnectionStringBuilder
     {
         Host = uri.Host,
-        Port = uri.Port,
+        Port = uri.Port > 0 ? uri.Port : 5432,
         Username = userInfo[0],
         Password = userInfo[1],
         Database = uri.AbsolutePath.Trim('/'),
