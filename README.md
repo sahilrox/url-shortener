@@ -59,7 +59,13 @@ npm start
 
 ## 📸 Screenshots
 
-*Add screenshots here (Shorten, Analytics, Dashboard)*
+<img width="1010" height="644" alt="image" src="https://github.com/user-attachments/assets/8e038a74-7677-40aa-bd28-a2b2863c5679" />
+URL Shortener
+<img width="1021" height="1194" alt="image" src="https://github.com/user-attachments/assets/8c78cf4c-a1c4-4eb3-b7d0-e3fd4b644647" />
+Analytics
+<img width="883" height="823" alt="image" src="https://github.com/user-attachments/assets/55378334-61c9-4626-8367-acf62aa76c4e" />
+URL links
+
 
 ---
 
