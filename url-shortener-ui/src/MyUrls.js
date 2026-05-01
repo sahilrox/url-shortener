@@ -93,7 +93,7 @@ function MyUrls() {
             u.shortCode.toLowerCase().includes(search.toLowerCase())
           )
           .map((u, i) => {
-            const shortUrl = `https://url-shortener-f45d.onrender.com/${u.shortCode}`;
+            const shortUrl = `${window.location.origin}/${u.shortCode}`;
 
             return (
               <div

@@ -36,7 +36,7 @@ function App() {
       }
 
       const data = await response.json();
-      setResult(data.shortUrl);
+      setResult(`${window.location.origin}/${data.shortCode}`);
     } catch {
       alert("Error");
     }
@@ -59,7 +59,7 @@ function App() {
   return (
       <div className="app">
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <h1>🔗 URL Shortener</h1>
+            <h1>🔗 LinkPulse</h1>
             <button className="button" onClick={logout}>
               Logout
             </button>
