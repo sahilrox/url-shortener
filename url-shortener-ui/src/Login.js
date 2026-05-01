@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./App.css";
 
 const API_BASE = "https://url-shortener-f45d.onrender.com";
 
@@ -43,7 +44,7 @@ export default function Login({ onSuccess }) {
   };
 
   return (
-    <div className="card">
+    <div className="card login-card">
       <h2>{mode === "login" ? "🔐 Login" : "📝 Register"}</h2>
 
       <input className="input" placeholder="Email"

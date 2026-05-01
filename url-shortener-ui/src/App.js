@@ -44,49 +44,53 @@ function App() {
     window.location.reload();
   };
 
-  if (!loggedIn) {
-    return <Login onSuccess={() => setLoggedIn(true)} />;
-  }
+ if (!loggedIn) {
+  return (
+    <div className="app-container">
+      <Login onSuccess={() => setLoggedIn(true)} />
+    </div>
+  );
+}
 
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h1>🔗 URL Shortener</h1>
-        <button className="button" onClick={logout}>
-          Logout
-        </button>
-      </div>
-
-      <div className="card">
-        <input
-          className="input"
-          placeholder="Enter URL"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-
-        <input
-          className="input"
-          placeholder="Custom code (optional)"
-          value={customCode}
-          onChange={(e) => setCustomCode(e.target.value)}
-        />
-
-        <button className="button" onClick={handleSubmit}>
-          Shorten
-        </button>
-
-        {result && (
-          <div style={{ marginTop: "15px" }}>
-            <a href={result} target="_blank" rel="noreferrer">
-              {result}
-            </a>
+      <div className="app">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <h1>🔗 URL Shortener</h1>
+            <button className="button" onClick={logout}>
+              Logout
+            </button>
           </div>
-        )}
-      </div>
 
-      <Stats />
-    </div>
+          <div className="card">
+            <input
+              className="input"
+              placeholder="Enter URL"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+
+            <input
+              className="input"
+              placeholder="Custom code (optional)"
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value)}
+            />
+
+            <button className="button" onClick={handleSubmit}>
+              Shorten
+            </button>
+
+            {result && (
+              <div style={{ marginTop: "15px" }}>
+                <a href={result} target="_blank" rel="noreferrer">
+                  {result}
+                </a>
+              </div>
+            )}
+          </div>
+
+          <Stats />
+        </div>
   );
 }
 

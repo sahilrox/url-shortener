@@ -1,123 +1,228 @@
-.container {
-  max-width: 700px;
+/* 🔥 GLOBAL STYLES */
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background: radial-gradient(circle at top, #0f172a, #020617);
+  color: white;
+}
+
+/* Container */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, #1e3a8a, transparent),
+      radial-gradient(circle at 80% 80%, #6366f1, transparent),
+      #020617;
+}
+
+/* MAIN APP */
+.app {
+  width: 100%;
+  max-width: 900px;
   margin: auto;
   padding: 40px 20px;
+  margin-top: 60px;
 }
 
-h1 {
+/* Title */
+.title {
   text-align: center;
-  margin-bottom: 20px;
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 25px;
 }
 
-/* Card */
+/* Tabs */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.tab {
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab.active {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+}
+
+.tab:hover {
+  transform: scale(1.05);
+}
+
 .card {
-  background: rgba(30, 41, 59, 0.8);
-  backdrop-filter: blur(12px);
-  padding: 24px;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  background: rgba(30, 41, 59, 0.75);
+  backdrop-filter: blur(14px);
+  padding: 25px;
+  border-radius: 18px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.4s ease-in-out;
 }
 
-/* Inputs */
+
+.login-card {
+  max-width: 420px;
+  width: 100%;
+  margin: auto;
+  padding: 30px;
+  border-radius: 20px;
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 40px rgba(59, 130, 246, 0.2);
+  text-align: center;
+}
+
+/* INPUTS */
 .input {
   width: 100%;
   padding: 14px;
-  margin-bottom: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: none;
-  background: #334155;
-  color: white;
   outline: none;
+  background: #1e293b;
+  color: white;
+  margin-bottom: 15px;
+  font-size: 15px;
 }
 
 .input:focus {
   box-shadow: 0 0 0 2px #3b82f6;
 }
 
-/* Button */
+/* BUTTON */
 .button {
-  width: 100%;
-  padding: 14px;
+  padding: 12px 18px;
   border-radius: 10px;
   border: none;
-  background: linear-gradient(90deg, #3b82f6, #6366f1);
-  color: white;
   cursor: pointer;
-  transition: 0.2s;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+  transform: scale(1.05);
+  opacity: 0.95;
 }
 
-/* Result box */
-.result {
-  margin-top: 15px;
+.button.full {
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+}
+
+/* SECONDARY BUTTON */
+.button.secondary {
   background: #1e293b;
-  padding: 12px;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
-/* Tabs */
-.tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.tab {
-  padding: 10px 16px;
-  background: #334155;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.tab.active {
-  background: #3b82f6;
-}
-
-.tab:hover {
-  background: #475569;
-}
-
-/* Stats cards */
+/* 🔥 STATS GRID */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 15px;
-  margin-bottom: 20px;
+  margin-top: 20px;
 }
 
 .stat-card {
-  background: #1e293b;
+  background: rgba(15, 23, 42, 0.8);
   padding: 15px;
-  border-radius: 12px;
+  border-radius: 14px;
   text-align: center;
+  transition: 0.2s;
 }
 
-.stat-card p {
-  color: #94a3b8;
-  font-size: 14px;
+.stat-card:hover {
+  transform: translateY(-3px);
 }
 
-.stat-card h2 {
-  margin-top: 5px;
-}
-
-/* Recent clicks */
+/* RECENT LIST */
 .recent {
   margin-top: 20px;
 }
 
 .recent-item {
-  background: #1e293b;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.6);
   margin-bottom: 8px;
   font-size: 14px;
+}
+
+/* 🌍 SECTION TITLES */
+.section-title {
+  margin-top: 20px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 🔥 COPY BUTTON */
+.copy-btn {
+  margin-top: 10px;
+}
+
+.login-card span {
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+.login-card span:hover {
+  text-decoration: underline;
+}
+
+/* 🔥 ANIMATION UPGRADE */
+.login-card {
+  animation: popIn 0.4s ease;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 🔥 ANIMATIONS */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 🔥 RESPONSIVE */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app {
+    padding: 20px 10px;
+  }
 }

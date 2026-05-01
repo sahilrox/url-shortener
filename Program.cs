@@ -142,6 +142,24 @@ app.MapPost("/login", async (AuthRequest req, AppDbContext db) =>
     });
 });
 
+app.MapGet("/my-urls", async (ClaimsPrincipal user, AppDbContext db) =>
+{
+    var userId = int.Parse(user.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+    var urls = await db.Urls
+        .Where(u => u.UserId == userId)
+        .OrderByDescending(u => u.CreatedAt)
+        .Select(u => new
+        {
+            u.ShortCode,
+            u.LongUrl,
+            u.HitCount,
+            u.CreatedAt
+        })
+        .ToListAsync();
+
+    return Results.Ok(urls);
+}).RequireAuthorization();
 // ================= SHORTEN =================
 
 app.MapPost("/shorten", async (
@@ -149,18 +167,19 @@ app.MapPost("/shorten", async (
     UrlRequest req,
     AppDbContext db) =>
 {
-    var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = int.Parse(context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
     if (userId == null)
         return Results.Unauthorized();
 
     var code = req.CustomCode ?? Guid.NewGuid().ToString()[..6];
+    
 
     var url = new UrlMapping
     {
         ShortCode = code,
         LongUrl = req.Url,
         CreatedAt = DateTime.UtcNow,
-        UserId = int.Parse(userId)
+        UserId = userId
     };
 
     db.Urls.Add(url);
