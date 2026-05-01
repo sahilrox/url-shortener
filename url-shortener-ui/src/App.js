@@ -36,7 +36,7 @@ function App() {
       }
 
       const data = await response.json();
-      setResult(`${window.location.origin}/${data.shortCode}`);
+      setResult(data.shortUrl);
     } catch {
       alert("Error");
     }

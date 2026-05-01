@@ -1,4 +1,4 @@
-const API_BASE = "https://url-shortener-f45d.onrender.com";
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 export const authFetch = async (url, options = {}) => {
   const token = localStorage.getItem("token");

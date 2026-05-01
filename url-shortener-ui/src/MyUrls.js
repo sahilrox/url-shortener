@@ -93,7 +93,7 @@ function MyUrls() {
             u.shortCode.toLowerCase().includes(search.toLowerCase())
           )
           .map((u, i) => {
-            const shortUrl = `${window.location.origin}/${u.shortCode}`;
+            const shortUrl = u.shortUrl;
 
             return (
               <div
