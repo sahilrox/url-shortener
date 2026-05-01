@@ -2,6 +2,8 @@ import { useState } from "react";
 import { authFetch } from "./api";
 import Stats from "./Stats";
 import Login from "./Login";
+import MyUrls from "./MyUrls";
+import { QRCodeCanvas } from "qrcode.react";
 
 function App() {
   const [url, setUrl] = useState("");
@@ -10,6 +12,7 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(
     !!localStorage.getItem("token")
   );
+  const [tab, setTab] = useState("shorten");
 
   const handleSubmit = async () => {
     if (!url) {
@@ -44,6 +47,7 @@ function App() {
     window.location.reload();
   };
 
+  
  if (!loggedIn) {
   return (
     <div className="app-container">
@@ -61,6 +65,30 @@ function App() {
             </button>
           </div>
 
+          <div className="tabs">
+            <div
+              className={`tab ${tab === "shorten" ? "active" : ""}`}
+              onClick={() => setTab("shorten")}
+            >
+              Shorten
+            </div>
+
+            <div
+              className={`tab ${tab === "analytics" ? "active" : ""}`}
+              onClick={() => setTab("analytics")}
+            >
+              Analytics
+            </div>
+
+            <div
+              className={`tab ${tab === "myurls" ? "active" : ""}`}
+              onClick={() => setTab("myurls")}
+            >
+              My Links
+            </div>
+          </div>
+
+          {tab === "shorten" && (
           <div className="card">
             <input
               className="input"
@@ -81,15 +109,38 @@ function App() {
             </button>
 
             {result && (
-              <div style={{ marginTop: "15px" }}>
-                <a href={result} target="_blank" rel="noreferrer">
-                  {result}
-                </a>
-              </div>
-            )}
-          </div>
+            <div className="result-box">
+              <div className="result-left">
+                <p className="result-label">Your Short Link</p>
 
-          <Stats />
+                <div className="result-row">
+                  <a href={result} target="_blank" rel="noreferrer">
+                    {result}
+                  </a>
+
+                  <button
+                    className="button small"
+                    onClick={() => navigator.clipboard.writeText(result)}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="result-right">
+                <p className="qr-label">Scan QR</p>
+                <div className="qr-box">
+                  <QRCodeCanvas value={result} size={110} />
+                </div>
+              </div>
+            </div>
+          )}
+          </div>
+        )}
+
+        {tab === "analytics" && <Stats />}
+
+        {tab === "myurls" && <MyUrls />}
         </div>
   );
 }

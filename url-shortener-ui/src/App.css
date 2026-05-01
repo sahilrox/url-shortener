@@ -61,12 +61,16 @@ body {
 .card {
   background: rgba(30, 41, 59, 0.75);
   backdrop-filter: blur(14px);
-  padding: 25px;
+  padding: 28px;
   border-radius: 18px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   animation: fadeIn 0.4s ease-in-out;
 }
 
+.card h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
 
 .login-card {
   max-width: 420px;
@@ -91,8 +95,8 @@ body {
   outline: none;
   background: #1e293b;
   color: white;
-  margin-bottom: 15px;
-  font-size: 15px;
+  margin-bottom: 18px;
+  font-size: 14px;
 }
 
 .input:focus {
@@ -225,4 +229,129 @@ body {
   .app {
     padding: 20px 10px;
   }
+}
+
+.url-list {
+  margin-top: 15px;
+}
+
+.url-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 18px;
+  border-radius: 16px;
+  margin-bottom: 14px;
+  transition: all 0.2s ease;
+}
+
+.url-item+.url-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 18px;
+}
+
+.url-item:hover {
+  transform: translateY(-2px);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.url-left {
+  max-width: 60%;
+}
+
+/* SHORT URL */
+.url-left a {
+  color: #60a5fa;
+  font-weight: 600;
+  font-size: 15px;
+  word-break: break-all;
+}
+
+/* ORIGINAL URL */
+.url-left p {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 6px;
+}
+
+.button.small {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* group buttons nicely */
+.url-right button {
+  margin-top: 4px;
+}
+
+.button.small {
+  margin-top: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.result-box {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+/* LEFT SIDE */
+.result-left {
+  flex: 1;
+}
+
+.result-label {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-row a {
+  color: #60a5fa;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+/* RIGHT SIDE (QR) */
+.result-right {
+  text-align: center;
+}
+
+.qr-label {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
+
+.qr-box {
+  padding: 8px;
+  background: white;
+  border-radius: 10px;
+}
+
+.qr-section {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+}
+
+.qr-box:hover {
+  transform: scale(1.05);
+  transition: 0.2s;
 }
