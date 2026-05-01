@@ -331,6 +331,24 @@ app.MapGet("/stats/{code}", async (
     });
 }).RequireAuthorization();
 
+app.MapDelete("/delete/{code}", async (string code, ClaimsPrincipal user, AppDbContext db) =>
+{
+    var userId = int.Parse(user.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+    var url = await db.Urls.FirstOrDefaultAsync(u => u.ShortCode == code);
+
+    if (url == null)
+        return Results.NotFound();
+
+    if (url.UserId != userId)
+        return Results.Unauthorized();
+
+    db.Urls.Remove(url);
+    await db.SaveChangesAsync();
+
+    return Results.Ok("Deleted");
+}).RequireAuthorization();
+
 app.Run();
 
 // ================= DTOs =================

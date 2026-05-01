@@ -6,6 +6,15 @@ function MyUrls() {
   const [urls, setUrls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState(null);
+  const [sort, setSort] = useState("latest");
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg) => {
+  setToast(msg);
+  setTimeout(() => setToast(""), 2000);
+  };
+  
 
   const fetchUrls = async () => {
     setLoading(true);
@@ -28,21 +37,26 @@ function MyUrls() {
   }, []);
 
   const deleteUrl = async (code) => {
-    const confirmDelete = window.confirm("Delete this link?");
-    if (!confirmDelete) return;
+  const confirmDelete = window.confirm("Delete this link?");
+  if (!confirmDelete) return;
 
+  setDeleting(code); // 👈 trigger animation
+
+  setTimeout(async () => {
     const res = await authFetch(`/delete/${code}`, {
       method: "DELETE"
     });
 
     if (!res.ok) {
       alert("Delete failed");
+      setDeleting(null);
       return;
     }
 
-    // remove from UI instantly
     setUrls((prev) => prev.filter((u) => u.shortCode !== code));
-  };
+    showToast("Deleted!");
+  }, 300); // 👈 match animation time
+};
 
   return (
     <div className="card">
@@ -55,12 +69,22 @@ function MyUrls() {
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      {loading && <p>Loading...</p>}
+      <select
+        className="input"
+        value={sort}
+        onChange={(e) => setSort(e.target.value)}
+        >
+        <option value="latest">Latest</option>
+        <option value="oldest">Oldest</option>
+        <option value="clicks">Most Clicks</option>
+      </select>
 
+      {loading && <p>Loading...</p>}
+      
       {!loading && urls.length === 0 && (
         <p>No links yet. Create one 🚀</p>
       )}
-
+      {toast && <div className="toast">{toast}</div>}
       {/* 🔥 LIST CONTAINER */}
       <div className="url-list">
         {urls
@@ -72,7 +96,12 @@ function MyUrls() {
             const shortUrl = `https://url-shortener-f45d.onrender.com/${u.shortCode}`;
 
             return (
-              <div key={i} className="url-item">
+              <div
+                key={i}
+                className={`url-item ${
+                    deleting === u.shortCode ? "deleting" : ""
+                }`}
+                >
                 <div className="url-left">
                   <a href={shortUrl} target="_blank" rel="noreferrer">
                     {shortUrl}
@@ -86,9 +115,10 @@ function MyUrls() {
 
                   <button
                     className="button small"
-                    onClick={() =>
-                      navigator.clipboard.writeText(shortUrl)
-                    }
+                    onClick={() => {
+                      navigator.clipboard.writeText(shortUrl);
+                      showToast("Copied!");
+                    }}
                   >
                     Copy
                   </button>
