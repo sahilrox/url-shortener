@@ -154,7 +154,8 @@ app.MapGet("/my-urls", async (ClaimsPrincipal user, AppDbContext db) =>
             u.ShortCode,
             u.LongUrl,
             u.HitCount,
-            u.CreatedAt
+            u.CreatedAt,
+            shortUrl = $"https://url-shortener-f45d.onrender.com/{u.ShortCode}"
         })
         .ToListAsync();
 
